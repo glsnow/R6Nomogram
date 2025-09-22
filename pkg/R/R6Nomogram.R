@@ -122,7 +122,7 @@ R6Nomogram$set("public", "PopulateVars", function(model, newdata,
   self$orig.x <- get_all_vars(tmp, newdata)
   
   tmp.terms <- predict(model, newdata, type=type.terms)
-  self$constant <- attr(tmp.terms, "constant")
+  #self$constant <- attr(tmp.terms, "constant")
   self$orig.terms <- as.data.frame(predict(model, newdata, type=type.terms))
   self$orig.response <- predict(model, newdata, type=type.response)
   self$total.points <- predict(model, newdata)
