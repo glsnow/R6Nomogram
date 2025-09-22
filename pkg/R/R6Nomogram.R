@@ -132,6 +132,7 @@ R6Nomogram$set("public", "PopulateVars", function(model, newdata,
 })
 
 ## create.x ----
+
 R6Nomogram$set("public", "create.x", function(){
   tmp <- delete.response(terms(self$model$formula))
   tmp2 <- attr(tmp, 'factors')
@@ -205,15 +206,16 @@ R6Nomogram$set("public", "scale", function(max.points = 100) {
 R6Nomogram$set("public", "pretty", function(w=self$x.names,
                                             v) {
   for(i in w) {
+    self$x.y.offsets[[i]] <- NULL
     if(is.factor(self$x.vals[[i]])) {
       self$x.pretty.vals[[i]] <- self$x.vals[[i]]
       self$x.pretty.points[[i]] <- self$x.points[[i]]
       next
     }
     if(missing(v)) {
-      vv <- pretty(self$x.vals[[i]])
+      vv <- axisTicks(range(self$x.vals[[i]]), FALSE)
     } else if(length(v)==1 && is.numeric(v)) {
-      vv <- pretty(self$x.vals[[i]], n=v)
+      vv <- axisTicks(range(self$x.vals[[i]]), FALSE, nint=v)
     } else if(is.list(v)) {
       vv <- v[[i]]
     } else if(is.numeric(v)) {
@@ -233,9 +235,9 @@ R6Nomogram$set("public", "pretty", function(w=self$x.names,
 
 R6Nomogram$set("public", "pretty.y", function(v) {
   if(missing(v)) {
-    vv <- pretty(self$total.points)
+    vv <- axisTicks(range(self$total.points), FALSE)
   } else if(length(v)==1) {
-    vv <- pretty(self$total.points, n=v)
+    vv <- axisTicks(range(self$total.points), FALSE, nint=v)
   } else {
     vv <- v
   }
@@ -254,8 +256,8 @@ R6Nomogram$set("public", "pretty.y", function(v) {
 
 R6Nomogram$set("public", "plot", function(plot.x=TRUE, plot.y=TRUE,
                                           predict, ...) {
-  oldpar <- par(no.readonly = TRUE)
-  on.exit(par(oldpar))
+#  oldpar <- par(c())
+#  on.exit(par(oldpar))
   
   par(mar=c(1, max(nchar(self$x.labels)), 1, 0) + 0.1,
       xpd=TRUE)
@@ -289,16 +291,46 @@ R6Nomogram$set("public", "plot", function(plot.x=TRUE, plot.y=TRUE,
     for(i in seq_along(self$v.pos.x)) {
       if(i==1) { # points
         segments(0, self$v.pos.x[1], max.p)
-        tmp <- pretty(c(0,max.p))
-        segments(tmp, self$v.pos.x[1], tmp, self$v.pos.x[1]+strheight("M")/2)
-        text(tmp, self$v.pos.x[i]+strheight("M")*0.75, tmp)
+        tmp <- axisTicks(c(0,max.p), FALSE, nint=10)
+        segments(tmp, self$v.pos.x[1], tmp, self$v.pos.x[1]+strheight("M")/5)
+        text(tmp, self$v.pos.x[1]+strheight("M")*0.4, tmp)
         
         next
       }
       
+      cur.name <- self$x.names[i-1]
+    
+      if(!( (cur.name %in% names(self$x.y.offsets)) &&
+            length(self$x.y.offsets[[cur.name]]) )) {
+        if(is.factor(n1$x.vals[[cur.name]])) {
+          self$x.y.offsets[[cur.name]] <- rep(c(1,-1), length.out=
+              length(self$x.pretty.points[[cur.name]]))[order(order(
+                self$x.pretty.points[[cur.name]]
+              ))]
+        } else {
+          tmp.o <- order(self$x.pretty.vals[[cur.name]])
+          tmp.x <- self$x.pretty.vals[[cur.name]][tmp.o]
+          tmp.p <- self$x.pretty.points[[cur.name]][tmp.o]
+          tmp.s <- sign(diff(tmp.p))
+          tmp.s <- c(tmp.s, tail(tmp.s,1))
+          # if(length(unique(tmp.s))==1) {
+          #   tmp.s <- rep(c(1, -1), length.out=length(tmp.o))
+          # }
+          self$x.y.offsets[[cur.name]] <- tmp.s[order(tmp.o)]
+        }
+      }
+      
+      segments(0, self$v.pos.x[i], max(self$x.points[[cur.name]]))
+      segments(x0=self$x.pretty.points[[cur.name]], y0=self$v.pos.x[i],
+               y1=self$v.pos.x[i] + 
+                 sign(self$x.y.offsets[[cur.name]])/5*strheight("M"))
+      text(self$x.pretty.points[[cur.name]], 
+           self$v.pos.x[i]+self$x.y.offsets[[cur.name]]*strheight("M")*0.4,
+           self$x.pretty.vals[[cur.name]])
       
     }
-    
+    axis(2, at=self$v.pos.x, labels=c(self$points.lab, self$x.labels),
+         tick=FALSE, las=1)
   }
   
   if(plot.y) {
@@ -307,6 +339,8 @@ R6Nomogram$set("public", "plot", function(plot.x=TRUE, plot.y=TRUE,
   
   return(invisible(self))
 })
+
+
 ## tables ----
 
 
