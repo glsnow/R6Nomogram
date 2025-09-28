@@ -30,8 +30,9 @@ R6Nomogram <- R6Class("R6Nomogram",
                         tick.par = list(),
                         points.lab = "Points",
                         total.points.lab = "Total Points",
-                        lp.lab="Linear Predictor",
-                        resp.lab="Response"
+                        lp.lab = "Linear Predictor",
+                        resp.lab = "Response",
+                        verbose = TRUE
                       )
 )
 
@@ -42,6 +43,7 @@ R6Nomogram$set("public", "initialize", function(model, newdata,
                                                 steps=Inf,
                                                 type.terms="terms",
                                                 type.response="response") {
+  self$verbose <- verbose
   if(steps >= 1) {
     if(verbose) cat("1. Loading newdata\n")
     self$model <- model
@@ -86,7 +88,8 @@ R6Nomogram$set("public", "initialize", function(model, newdata,
 
 ## PopulateVars ----
 
-R6Nomogram$set("public", "PopulateVars", function(model, newdata,
+R6Nomogram$set("public", "PopulateVars", function(model=self$model, 
+                                                  newdata=self$newdata,
                                                   type.terms="terms",
                                                   type.response=
                                                     "response") {
@@ -122,11 +125,12 @@ R6Nomogram$set("public", "PopulateVars", function(model, newdata,
   self$orig.x <- get_all_vars(tmp, newdata)
   
   tmp.terms <- predict(model, newdata, type=type.terms)
-  #self$constant <- attr(tmp.terms, "constant")
+  self$constant <- attr(tmp.terms, "constant")
   self$orig.terms <- as.data.frame(predict(model, newdata, type=type.terms))
   self$orig.response <- predict(model, newdata, type=type.response)
   self$total.points <- predict(model, newdata)
   self$linear.predictor <- self$total.points
+  self$total.points <- self$total.points - self$constant
   
   return(invisible(self))
 })
@@ -141,8 +145,10 @@ R6Nomogram$set("public", "create.x", function(){
       tmp.df <- self$orig.x[,as.logical(tmp2[,i])]
       if(all(sapply(tmp.df, is.numeric))) {
         x <- Reduce(`*`, tmp.df)
-      } else {
+      } else if(all(sapply(tmp.df, is.factor))) {
         x  <- interaction(tmp.df, sep=':')
+      } else { # mix, need to improve this eventually
+        x <- interaction(tmp.df, sep=':')
       }
     } else {
       x <- self$orig.x[,i]
@@ -190,8 +196,7 @@ R6Nomogram$set("public", "scale", function(max.points = 100) {
     sapply(self$x.points, max)
   )
   
-  self$total.points <- (self$total.points - self$constant)/m*max.points +
-    self$constant
+  self$total.points <- self$total.points/m*max.points
   self$scale.c <- self$scale.c*m/max.points
   
   for(i in self$x.names) {
@@ -245,8 +250,10 @@ R6Nomogram$set("public", "pretty.y", function(v) {
   tmp <- spline(self$total.points, self$orig.response, method='natural',
                 xout=vv)
   self$pretty.total.points <- tmp$x
-  self$pretty.linear.predictor <- self$constant + self$scale.c * tmp$x
-  self$pretty.response <- tmp$y
+  self$pretty.linear.predictor <- signif(
+    self$constant + self$scale.c * tmp$x,
+    2)
+  self$pretty.response <- signif(tmp$y, 2)
   
   return(invisible(self))
 })
@@ -331,10 +338,133 @@ R6Nomogram$set("public", "plot", function(plot.x=TRUE, plot.y=TRUE,
     }
     axis(2, at=self$v.pos.x, labels=c(self$points.lab, self$x.labels),
          tick=FALSE, las=1)
+    
+    if(!missing(predict)) {
+      tot <- 0
+      for(i in seq(length(self$x.labels), 1)) {
+        cur.name <- self$x.names[i]
+        if(!(cur.name %in% names(predict))) {
+          tmp <- delete.response(terms(self$model$formula))
+          tmp2 <- attr(tmp, 'factors')
+          tmp3 <- tmp2[,cur.name]
+          tmp.df <- predict[names(tmp3)[tmp3==1]]
+          if(all(sapply(tmp.df, is.numeric))) {
+            x <- Reduce(`*`, tmp.df)
+          } else {
+            x  <- interaction(tmp.df, sep=':')
+          }
+          predict[cur.name] <- x
+        }
+        if(is.numeric(self$x.vals[[cur.name]])) {
+          tmp <- spline(self$x.vals[[cur.name]], 
+                        self$x.points[[cur.name]], method='natural',
+                        xout=unlist(predict[cur.name]))
+        } else if(is.factor(self$x.vals[[cur.name]])) {
+          tmp <- list(y= self$x.points[[cur.name]][
+            as.numeric(unlist(predict[cur.name]))
+          ])
+        } else { # character
+          tmp <- list(y= self$x.points[[cur.name]][
+            match(unlist(predict[cur.name]), 
+                  as.character(self$x.vals[[cur.name]]))
+          ])
+        }
+        segments(tmp$y, self$v.pos.x[i+1], y1=self$v.pos.x[1], col=i)
+        if(self$verbose) cat(cur.name, ": ", tmp$y, "\n")
+        tot <- tot + tmp$y
+      }
+      if(self$verbose) cat("\nTotal Points: ", tot, "\n\n")
+    }
   }
   
   if(plot.y) {
+    if(!plot.x) {
+      
+      max.p <- max(sapply(self$x.points, max))
+      
+      if(!length(self$v.pos.r)) {
+        if(self$plot.lp) {
+          self$v.pos.r <- -(1:3) 
+        } else {
+          self$v.pos.r <- -(1:2)
+        }
+      }
+      
+      plot.new()
+      plot.window(xlim = c(0, max.p), 
+                  ylim=c(min(self$v.pos.r), 0))
+      
+      if(!missing(predict)) {  # copy of above, should make a function
+        
+        tot <- 0
+        for(i in seq(length(self$x.labels), 1)) {
+          cur.name <- self$x.names[i]
+          if(!(cur.name %in% names(predict))) {
+            tmp <- delete.response(terms(self$model$formula))
+            tmp2 <- attr(tmp, 'factors')
+            tmp3 <- tmp2[,cur.name]
+            tmp.df <- predict[names(tmp3)[tmp3==1]]
+            if(all(sapply(tmp.df, is.numeric))) {
+              x <- Reduce(`*`, tmp.df)
+            } else {
+              x  <- interaction(tmp.df, sep=':')
+            }
+            predict[cur.name] <- x
+          }
+          if(is.numeric(self$x.vals[[cur.name]])) {
+            tmp <- spline(self$x.vals[[cur.name]], 
+                          self$x.points[[cur.name]], method='natural',
+                          xout=unlist(predict[cur.name]))
+          } else if(is.factor(self$x.vals[[cur.name]])) {
+            tmp <- list(y= self$x.points[[cur.name]][
+              as.numeric(unlist(predict[cur.name]))
+            ])
+          } else { # character
+            tmp <- list(y= self$x.points[[cur.name]][
+              match(unlist(predict[cur.name]), 
+                    as.character(self$x.vals[[cur.name]]))
+            ])
+          }
+          tot <- tot + tmp$y
+        }
+      }
+    }
     
+    i2 <- self$plot.lp + 2
+    
+    segments(0, self$v.pos.r, max.p)
+    tick.pos <- (self$pretty.total.points - min(self$total.points))/
+      diff(range(self$total.points))*max.p
+    segments(tick.pos, self$v.pos.r[1], tick.pos, self$v.pos.r[1]+
+               strheight("M")/5)
+    if(self$plot.lp) {
+      segments(tick.pos, self$v.pos.r[2], tick.pos, self$v.pos.r[2]+
+                 strheight("M")/5)
+    }
+    segments(tick.pos, self$v.pos.r[i2], tick.pos, self$v.pos.r[i2]-
+               strheight("M")/5)
+    text(tick.pos, self$v.pos.r[1] + strheight("M")*0.4,
+         self$pretty.total.points)
+    if(self$plot.lp) {
+      text(tick.pos, self$v.pos.r[2] + strheight("M")*0.4,
+           self$pretty.linear.predictor)
+    }
+    text(tick.pos, self$v.pos.r[i2] - strheight("M")*0.4,
+         self$pretty.response)
+    tmp.lab <- if(self$plot.lp) {
+      c(self$total.points.lab, self$lp.lab, self$resp.lab)
+    } else {
+      c(self$total.points.lab, self$resp.lab)
+    }
+    axis(2, at=self$v.pos.r, labels= tmp.lab,
+         tick=FALSE, las=1)
+    
+    if(!missing(predict)) {
+      segments( (tot-min(self$total.points))/
+                  diff(range(self$total.points))*max.p,
+                self$v.pos.r[1], y1=self$v.pos.r[i2],
+                col='red')
+    }
   }
   
   return(invisible(self))
@@ -360,9 +490,39 @@ fit2 <- glm(am ~ poly(mpg,2) + poly(disp,2) +
 n1 <- R6Nomogram$new(fit2)
 n1$plot()
 
+tmp <- mtcars[1,]
+#tmp[['cyl:gear']] <- 5
+#tmp[['cyl:gear']] <- factor('6:4', levels=levels(n1$x.pretty.vals$`cyl:gear`))
+n1$plot(predict=tmp)
+
+n1$plot.lp <- TRUE
+n1$v.pos.r <- NULL
+n1$plot()
+n1$plot(predict=tmp)
+
+n1$plot(predict=mtcars[24,])
+n1$plot(predict=mtcars[26,])
 
 predict(fit2, type='terms') |> head()
 
+
+fit3 <- lm(n1$orig.response ~ n1$total.points)
+fit3
+
+n1$constant
+n1$scale.c
+
+coef(fit3)[2] - n1$scale.c
+coef(fit3)[1] - n1$constant
+
+all.equal(n1$orig.response, n1$linear.predictor)
+
+tmp1 <- Reduce(`+`, n1$orig.terms) + 0.40625
+fit4 <- lm(n1$linear.predictor ~ tmp1)
+fit4
+
+fit5 <- lm(mpg ~ wt*cyl, data=mtcars)
+head(predict(fit5, type='terms'))
 
 ## notes ----
   
