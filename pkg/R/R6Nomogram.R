@@ -503,6 +503,8 @@ n1$plot(predict=tmp)
 n1$plot(predict=mtcars[24,])
 n1$plot(predict=mtcars[26,])
 
+R6Nomogram$new(fit2)$plot()
+
 predict(fit2, type='terms') |> head()
 
 
