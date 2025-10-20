@@ -3,6 +3,7 @@ library(R6)
 R6Nomogram <- R6Class("R6Nomogram",
                       public = list(
                         model = list(),
+                        terms = list(),
                         newdata = list(),
                         var.names = character(0),
                         x.names = character(0),
@@ -25,9 +26,14 @@ R6Nomogram <- R6Class("R6Nomogram",
                         plot.lp = FALSE,
                         v.pos.x = numeric(0),
                         v.pos.r = numeric(0),
-                        text.par = list(),
-                        line.par = list(),
-                        tick.par = list(),
+                        options = list(
+                          tik.len=1/5,
+                          txt.pos=1/2,
+                          points.nint=10,
+                          signif.digits=2,
+                          text.par = list(),
+                          line.par = list(),
+                          tick.par = list()),
                         points.lab = "Points",
                         total.points.lab = "Total Points",
                         lp.lab = "Linear Predictor",
@@ -47,6 +53,8 @@ R6Nomogram$set("public", "initialize", function(model, newdata,
   if(steps >= 1) {
     if(verbose) cat("1. Loading newdata\n")
     self$model <- model
+    self$terms <- terms(model) %||% terms(model$formula)
+    
     if(missing(newdata)) {
       self$newdata <- model$data
     } else {
@@ -94,20 +102,8 @@ R6Nomogram$set("public", "PopulateVars", function(model=self$model,
                                                   type.response=
                                                     "response") {
   data.names <- names(newdata)
-# look at replacing the following with all.vars and get_all_vars
-  # var.names <- character(0)
-  # tmp <- as.list(attr(delete.response(terms(model$formula)), 'variables'))
-  # while(length(tmp)) {
-  #   if(is.call(tmp[[1]])) {
-  #     tmp <- c(tmp, as.list(tmp[[1]]))
-  #   } 
-  #   if(is.name(tmp[[1]])) {
-  #     var.names <- c(var.names, as.character(tmp[[1]]))
-  #   }
-  #   tmp[[1]] <- NULL
-  # }
   
-  tmp <- delete.response(terms(model$formula))
+  tmp <- delete.response(self$terms)
   var.names <- all.vars(tmp)
   if(length(setdiff(var.names, data.names))) warning(
     "There are variable names in the formula that are not in the data!"
@@ -138,7 +134,7 @@ R6Nomogram$set("public", "PopulateVars", function(model=self$model,
 ## create.x ----
 
 R6Nomogram$set("public", "create.x", function(){
-  tmp <- delete.response(terms(self$model$formula))
+  tmp <- delete.response(self$terms)
   tmp2 <- attr(tmp, 'factors')
   for(i in seq_along(self$orig.terms)) {
     if(i > length(self$var.names)) {
@@ -252,8 +248,9 @@ R6Nomogram$set("public", "pretty.y", function(v) {
   self$pretty.total.points <- tmp$x
   self$pretty.linear.predictor <- signif(
     self$constant + self$scale.c * tmp$x,
-    2)
-  self$pretty.response <- signif(tmp$y, 2)
+    self$options$signif.digits)
+  self$pretty.response <- signif(tmp$y, 
+                                 self$options$signif.digits)
   
   return(invisible(self))
 })
@@ -297,11 +294,32 @@ R6Nomogram$set("public", "plot", function(plot.x=TRUE, plot.y=TRUE,
     
     for(i in seq_along(self$v.pos.x)) {
       if(i==1) { # points
-        segments(0, self$v.pos.x[1], max.p)
-        tmp <- axisTicks(c(0,max.p), FALSE, nint=10)
-        segments(tmp, self$v.pos.x[1], tmp, self$v.pos.x[1]+strheight("M")/5)
-        text(tmp, self$v.pos.x[1]+strheight("M")*0.4, tmp)
+        tmp.args <- self$options$line.par[["points"]] %||%
+          self$options$line.par[["default"]] %||%
+          list()
+        tmp.args <- modifyList(tmp.args, 
+                               list(x0=0, y0=self$v.pos.x[1], 
+                                    x1=max.p))
+        do.call(segments, tmp.args)
+
+        tmp <- axisTicks(c(0,max.p), FALSE, nint=self$options$points.nint)
+        tmp.args <- self$options$tick.par[["points"]] %||%
+          self$options$tick.par[["default"]] %||%
+          list()
+        tmp.args <- modifyList(tmp.args,
+                               list(x0=tmp, y0=self$v.pos.x[1], 
+                                    x1=tmp, 
+                                    y1=self$v.pos.x[1]+strheight("M")*self$options$tik.len))
+        do.call(segments, tmp.args)
         
+        tmp.args <- self$options$text.par[["points"]] %||%
+          self$options$text.par[["default"]] %||%
+          list()
+        tmp.args <- modifyList(tmp.args,
+                                list(x=tmp, 
+                                     y=self$v.pos.x[1]+strheight("M")*self$options$txt.pos, 
+                                     labels=tmp))
+        do.call(text, tmp.args)
         next
       }
       
@@ -320,20 +338,36 @@ R6Nomogram$set("public", "plot", function(plot.x=TRUE, plot.y=TRUE,
           tmp.p <- self$x.pretty.points[[cur.name]][tmp.o]
           tmp.s <- sign(diff(tmp.p))
           tmp.s <- c(tmp.s, tail(tmp.s,1))
-          # if(length(unique(tmp.s))==1) {
-          #   tmp.s <- rep(c(1, -1), length.out=length(tmp.o))
-          # }
           self$x.y.offsets[[cur.name]] <- tmp.s[order(tmp.o)]
         }
       }
       
-      segments(0, self$v.pos.x[i], max(self$x.points[[cur.name]]))
-      segments(x0=self$x.pretty.points[[cur.name]], y0=self$v.pos.x[i],
-               y1=self$v.pos.x[i] + 
-                 sign(self$x.y.offsets[[cur.name]])/5*strheight("M"))
-      text(self$x.pretty.points[[cur.name]], 
-           self$v.pos.x[i]+self$x.y.offsets[[cur.name]]*strheight("M")*0.4,
-           self$x.pretty.vals[[cur.name]])
+      tmp.args <- self$options$line.par[[cur.name]] %||%
+        self$options$line.par[["default"]] %||%
+        list()
+      tmp.args <- modifyList(tmp.args, 
+                             list(x0=0, y0=self$v.pos.x[i], 
+                                  x1=max(self$x.points[[cur.name]])))
+      do.call(segments, tmp.args)
+      
+      tmp.args <- self$options$tick.par[[cur.name]] %||%
+        self$options$tick.par[["default"]] %||%
+        list()
+      tmp.args <- modifyList(tmp.args,
+                             list(x0=self$x.pretty.points[[cur.name]], 
+                                  y0=self$v.pos.x[i],
+                                  y1=self$v.pos.x[i] + 
+                                    sign(self$x.y.offsets[[cur.name]])*self$options$tik.len*strheight("M")))
+      do.call(segments, tmp.args)
+      
+      tmp.args <- self$options$text.par[[cur.name]] %||%
+        self$options$text.par[["default"]] %||%
+        list()
+      tmp.args <- modifyList(tmp.args,
+                             list(x=self$x.pretty.points[[cur.name]], 
+                                  y=self$v.pos.x[i]+self$x.y.offsets[[cur.name]]*strheight("M")*self$options$txt.pos,
+                                  labels=self$x.pretty.vals[[cur.name]]))
+      do.call(text, tmp.args)
       
     }
     axis(2, at=self$v.pos.x, labels=c(self$points.lab, self$x.labels),
@@ -344,7 +378,7 @@ R6Nomogram$set("public", "plot", function(plot.x=TRUE, plot.y=TRUE,
       for(i in seq(length(self$x.labels), 1)) {
         cur.name <- self$x.names[i]
         if(!(cur.name %in% names(predict))) {
-          tmp <- delete.response(terms(self$model$formula))
+          tmp <- delete.response(self$terms)
           tmp2 <- attr(tmp, 'factors')
           tmp3 <- tmp2[,cur.name]
           tmp.df <- predict[names(tmp3)[tmp3==1]]
@@ -400,7 +434,7 @@ R6Nomogram$set("public", "plot", function(plot.x=TRUE, plot.y=TRUE,
         for(i in seq(length(self$x.labels), 1)) {
           cur.name <- self$x.names[i]
           if(!(cur.name %in% names(predict))) {
-            tmp <- delete.response(terms(self$model$formula))
+            tmp <- delete.response(self$terms)
             tmp2 <- attr(tmp, 'factors')
             tmp3 <- tmp2[,cur.name]
             tmp.df <- predict[names(tmp3)[tmp3==1]]
@@ -432,25 +466,79 @@ R6Nomogram$set("public", "plot", function(plot.x=TRUE, plot.y=TRUE,
     
     i2 <- self$plot.lp + 2
     
-    segments(0, self$v.pos.r, max.p)
+    tmp.args <- self$options$line.par[["response"]] %||%
+      self$options$line.par[["default"]] %||%
+      list()
+    tmp.args <- modifyList(tmp.args, 
+                           list(x0=0, 
+                                y0=self$v.pos.r, 
+                                x1=max.p))
+    do.call(segments, tmp.args)
+    
     tick.pos <- (self$pretty.total.points - min(self$total.points))/
       diff(range(self$total.points))*max.p
-    segments(tick.pos, self$v.pos.r[1], tick.pos, self$v.pos.r[1]+
-               strheight("M")/5)
+    tmp.args <- self$options$tick.par[['total points']] %||%
+      self$options$tick.par[['default']] %||%
+      list()
+    tmp.args <- modifyList(tmp.args, 
+                           list(x0=tick.pos, 
+                                y0=self$v.pos.r[1], 
+                                x1=tick.pos, 
+                                y1=self$v.pos.r[1]+
+                                  strheight("M")*self$options$tik.len))
+    do.call(segments, tmp.args)
     if(self$plot.lp) {
-      segments(tick.pos, self$v.pos.r[2], tick.pos, self$v.pos.r[2]+
-                 strheight("M")/5)
+      tmp.args <- self$options$tick.par[['linear predictor']] %||%
+        self$options$tick.par[['default']] %||%
+        list()
+      tmp.args <- modifyList(tmp.args, 
+                             list(x0=tick.pos, 
+                                  y0=self$v.pos.r[2], 
+                                  x1=tick.pos, 
+                                  y1=self$v.pos.r[2]+
+                                    strheight("M")*self$options$tik.len))
+      do.call(segments, tmp.args)
     }
-    segments(tick.pos, self$v.pos.r[i2], tick.pos, self$v.pos.r[i2]-
-               strheight("M")/5)
-    text(tick.pos, self$v.pos.r[1] + strheight("M")*0.4,
-         self$pretty.total.points)
+    tmp.args <- self$options$tick.par[['response']] %||%
+      self$options$tick.par[['default']] %||%
+      list()
+    tmp.args <- modifyList(tmp.args, 
+                           list(x0=tick.pos, 
+                                y0=self$v.pos.r[i2], 
+                                x1=tick.pos, 
+                                y1=self$v.pos.r[i2]-
+                                  strheight("M")*self$options$tik.len))
+    do.call(segments, tmp.args)
+    
+    tmp.args <- self$options$text.par[['total points']] %||%
+      self$options$text.par[['default']] %||% 
+      list()
+    tmp.args <- modifyList(tmp.args,
+                           list(x=tick.pos, 
+                                y=self$v.pos.r[1] + strheight("M")*self$options$txt.pos,
+                                labels=self$pretty.total.points))
+    do.call(text, tmp.args)
+    
     if(self$plot.lp) {
-      text(tick.pos, self$v.pos.r[2] + strheight("M")*0.4,
-           self$pretty.linear.predictor)
+      tmp.args <- self$options$text.par[['linear predictor']] %||%
+        self$options$text.par[['default']] %||%
+        list()
+      tmp.args <- modifyList(tmp.args,
+                             list(x=tick.pos, 
+                                  y=self$v.pos.r[2] + strheight("M")*self$options$txt.pos,
+                                  labels=self$pretty.linear.predictor))
+      do.call(text, tmp.args)
     }
-    text(tick.pos, self$v.pos.r[i2] - strheight("M")*0.4,
-         self$pretty.response)
+    
+    tmp.args <- self$options$text.par[['response']] %||%
+      self$options$text.par[['default']] %||%
+      list()
+    tmp.args <- modifyList(tmp.args,
+                           list(x=tick.pos, 
+                                y=self$v.pos.r[i2] - strheight("M")*self$options$txt.pos,
+                                labels=self$pretty.response))
+    do.call(text, tmp.args)
+    
     tmp.lab <- if(self$plot.lp) {
       c(self$total.points.lab, self$lp.lab, self$resp.lab)
     } else {
@@ -471,71 +559,37 @@ R6Nomogram$set("public", "plot", function(plot.x=TRUE, plot.y=TRUE,
 })
 
 
+## grconvertX ----
+
+R6Nomogram$set("public", "grconvertX", function(x, 
+                                                from="Total Points",
+                                                verbose) {
+  if(missing(verbose)) verbose <- self$verbose
+  if(from == "Total Points") {
+    max.p <- max(sapply(self$x.points, max))
+    return((x-min(self$total.points))/
+      diff(range(self$total.points))*max.p)
+  }
+  w <- match(from, self$x.names)
+  if(is.na(w)) {
+    warning("Unable to find a match for ", from)
+    return(NA)
+  }
+  if(is.factor(self$x.vals[[w]])) {
+    return(self$x.points[[w]][
+      match(x, self$x.vals[[w]])
+    ])
+  }
+  return(spline(
+    self$x.vals[[w]], self$x.points[[w]], method='natural',
+    xout=x)$y)
+})
+
+
+
 ## tables ----
 
-
-## tests ----
-
-#  fit2 <- glm(am ~ poly(mpg, 3) * wt, data=mtcars,
-#              family=binomial())
-
-mtcars$cyl <- factor(mtcars$cyl)
-mtcars$gear <- factor(mtcars$gear)
-
-fit2 <- glm(am ~ poly(mpg,2) + poly(disp,2) + 
-              cyl*gear + poly(wt,3),
-            data=mtcars)#, family=binomial)
-
-
-n1 <- R6Nomogram$new(fit2)
-n1$plot()
-
-tmp <- mtcars[1,]
-#tmp[['cyl:gear']] <- 5
-#tmp[['cyl:gear']] <- factor('6:4', levels=levels(n1$x.pretty.vals$`cyl:gear`))
-n1$plot(predict=tmp)
-
-n1$plot.lp <- TRUE
-n1$v.pos.r <- NULL
-n1$plot()
-n1$plot(predict=tmp)
-
-n1$plot(predict=mtcars[24,])
-n1$plot(predict=mtcars[26,])
-
-R6Nomogram$new(fit2)$plot()
-
-predict(fit2, type='terms') |> head()
-
-
-fit3 <- lm(n1$orig.response ~ n1$total.points)
-fit3
-
-n1$constant
-n1$scale.c
-
-coef(fit3)[2] - n1$scale.c
-coef(fit3)[1] - n1$constant
-
-all.equal(n1$orig.response, n1$linear.predictor)
-
-tmp1 <- Reduce(`+`, n1$orig.terms) + 0.40625
-fit4 <- lm(n1$linear.predictor ~ tmp1)
-fit4
-
-fit5 <- lm(mpg ~ wt*cyl, data=mtcars)
-head(predict(fit5, type='terms'))
-
-## notes ----
+R6Nomogram$set("public", "tables", function() {
   
-steps <- r"(
-  1. Load newdata
-  2. PopulateVars: x.names, var.names, orig.x, orig.terms, constant, 
-                    total.points, orig.responso, linear.predictor
-  3. create.x: x.points, x.vals; translate original into x and points
-  4. shift: shift x so that min(points) = 0
-  5. scale: scale points so maximum points is max.pnts
-  6. prettyify: convert x.points and x.vals into "pretty" versions,
-                also total.points, linear.predictor, response
-  7. plots and tables
-)"
+})
+
