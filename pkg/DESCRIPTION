@@ -10,7 +10,6 @@ Description:  Nomograms are a type of plot for displaying
   in the model that translates values of the variable into
   "points", the sum of the "points" is then looked up on 
   another scale to find the final prediction from the model.
-  
   This package provides an R6 object constructor that 
   does the computations for you to create an object 
   representing the nomogram for the model.  Methods and
