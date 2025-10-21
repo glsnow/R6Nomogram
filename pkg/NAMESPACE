@@ -1,0 +1,2 @@
+export("R6Nomogram")
+importFrom("R6", "R6Class")

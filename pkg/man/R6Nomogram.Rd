@@ -1,55 +1,66 @@
 \name{R6Nomogram}
 \alias{R6Nomogram}
-%- Also NEED an '\alias' for EACH other topic documented here.
 \title{
 Create an R6 reference class to create, modify, and plot Nomograms
 }
 \description{
-%%  ~~ A concise (1-5 lines) description of what the function does. ~~
+  Nomograms are a type of plot that can be used to explore
+  and expain many linear models.  This is an R6 reference
+  class creator to help with creating, customizing, and
+  plotting nomograms.  Methods in the nomogram object
+  allow you to customize parts of the process and there
+  are many options that can be changed to make the plot
+  easier to understand.
 }
 \usage{
-R6Nomogram()
+R6Nomogram$new(model, newdata, verbose=TRUE, step=Inf,
+  type.terms='terms', type.response='response')
 }
-%- maybe also 'usage' for other objects documented here.
 \details{
-%%  ~~ If necessary, more details than the description above ~~
+Calling `nom <- R6Nomogram$new(model)` will create an R6 
+object with the structure of the model needed to 
+construct the nomogram.  You can then generate the plot
+with a call like `nom$plot()`.  The first plot is likely
+to not be pretty, that is where you will use the methods
+or change values in the public variables to customize
+how you want the plot to look.  Generally this will be
+an iterative process of plotting, then making a change,
+ plotting again, etc.
+ 
+The initialization will try to do all the steps (other than
+plotting), this works fine for models from `lm` or `glm`, 
+but may not work fully for other models.  You can also 
+specify how many of the steps should be done automatically,
+then call the specific methods for the rest.  For some 
+models you may need to manually do some of the steps.
+
+The main steps are:
+
+\enumerate{
+  \item Load newdata
+  \item PopulateVars: x.names, var.names, orig.x, orig.terms, constant, 
+                    total.points, orig.responso, linear.predictor
+  \item create.x: x.points, x.vals; translate original into x and points
+  \item shift: shift x so that min(points) = 0
+  \item scale: scale points so maximum points is max.pnts
+  \item prettyify: convert x.points and x.vals into "pretty" versions,
+                also total.points, linear.predictor, response
+  \item plots and tables
+  }
+  
+  There are one or more methods for each of the above steps
 }
-\value{
-%%  ~Describe the value returned
-%%  If it is a LIST, use
-%%  \item{comp1 }{Description of 'comp1'}
-%%  \item{comp2 }{Description of 'comp2'}
-%% ...
-}
+
 \references{
-%% ~put references to the literature/web site here ~
+
 }
 \author{
-%%  ~~who you are~~
+  Greg Snow \email{538280@gmail.com}
 }
-\note{
-%%  ~~further notes~~
-}
-
-%% ~Make other sections like Warning with \section{Warning }{....} ~
 
 \seealso{
-%% ~~objects to See Also as \code{\link{help}}, ~~~
+  \code{nomogram} in the rms package
 }
 \examples{
-##---- Should be DIRECTLY executable !! ----
-##-- ==>  Define data, use random,
-##--	or standard data sets, see data().
 
-## The function is currently defined as
-<environment>
 }
-% Add one or more standard keywords, see file 'KEYWORDS' in the
-% R documentation directory (show via RShowDoc("KEYWORDS")):
-% \keyword{ ~kwd1 }
-% \keyword{ ~kwd2 }
-% Use only one keyword per line.
-% For non-standard keywords, use \concept instead of \keyword:
-% \concept{ ~cpt1 }
-% \concept{ ~cpt2 }
-% Use only one concept per line.

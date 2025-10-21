@@ -1,6 +1,5 @@
-library(R6)
 
-R6Nomogram <- R6Class("R6Nomogram",
+R6Nomogram <- R6::R6Class("R6Nomogram",
                       public = list(
                         model = list(),
                         terms = list(),
@@ -590,6 +589,20 @@ R6Nomogram$set("public", "grconvertX", function(x,
 ## tables ----
 
 R6Nomogram$set("public", "tables", function() {
-  
+  c(
+    sapply(self$x.names, function(w) {
+      setNames(data.frame(self$x.pretty.vals[[w]], 
+                          self$x.pretty.points[[w]]),
+               c(w, self$points.lab)
+      )
+    }, simplify=FALSE),
+    list(Response=setNames(
+      data.frame(self$pretty.total.points, 
+                 self$pretty.linear.predictor,
+                 self$pretty.response),
+      c(self$total.points.lab, self$lp.lab,
+        self$resp.lab)
+    ))
+  )
 })
 

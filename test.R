@@ -14,7 +14,11 @@ fit2 <- glm(am ~ poly(mpg,2) + poly(disp,2) +
 
 
 n1 <- R6Nomogram$new(fit2)
-n1$plot()
+n1$plot()$tables()
+
+n2 <- n1$clone()
+n2$pretty(v=100)$pretty.y(v=100)
+n2$tables()
 
 tmp <- mtcars[1,]
 #tmp[['cyl:gear']] <- 5
