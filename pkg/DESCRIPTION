@@ -1,11 +1,11 @@
 Package: R6Nomogram
 Version: 1.0
 Title: Create, Edit, and Plot Nomograms using R6 objects
-License: GPL (>= 2) | MIT
+License: GPL (>= 2)
 Authors@R: c(person("Greg", "Snow", role=c("aut", "cre"),
     email="538280@gmail.com"))
 Maintainer: Greg Snow <538280@gmail.com>
-Description:  Nomograms are a type of plot for displaying 
+Description: Nomograms are a type of plot for displaying 
   linear models.  A scale is plotted for each predictor 
   in the model that translates values of the variable into
   "points", the sum of the "points" is then looked up on 
@@ -17,3 +17,4 @@ Description:  Nomograms are a type of plot for displaying
   You can then plot the nomogram, further customize, replot,
   etc.
 Imports: R6
+RoxygenNote: 7.3.2

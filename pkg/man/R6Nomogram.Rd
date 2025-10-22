@@ -12,10 +12,6 @@ Create an R6 reference class to create, modify, and plot Nomograms
   are many options that can be changed to make the plot
   easier to understand.
 }
-\usage{
-R6Nomogram$new(model, newdata, verbose=TRUE, step=Inf,
-  type.terms='terms', type.response='response')
-}
 \details{
 Calling `nom <- R6Nomogram$new(model)` will create an R6 
 object with the structure of the model needed to 
@@ -51,9 +47,7 @@ The main steps are:
   There are one or more methods for each of the above steps
 }
 
-\references{
 
-}
 \author{
   Greg Snow \email{538280@gmail.com}
 }
@@ -63,4 +57,11 @@ The main steps are:
 }
 \examples{
 
+fit <- glm(mpg ~ poly(wt,2) + poly(disp,2) + 
+           factor(gear)*factor(cyl), 
+           data=mtcars, 
+           family=gaussian(link="inverse"))
+
+n1 <- R6Nomogram$new(fit)
+n1$plot()
 }
