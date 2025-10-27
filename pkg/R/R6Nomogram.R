@@ -37,6 +37,7 @@ R6Nomogram <- R6::R6Class("R6Nomogram",
                         total.points.lab = "Total Points",
                         lp.lab = "Linear Predictor",
                         resp.lab = "Response",
+                        tp.range = numeric(0),
                         verbose = TRUE
                       )
 )
@@ -55,7 +56,9 @@ R6Nomogram$set("public", "initialize", function(model, newdata,
     self$terms <- terms(model) %||% terms(model$formula)
     
     if(missing(newdata)) {
-      self$newdata <- model$data
+      self$newdata <- model$data %||% 
+        get(model$call$data) %||%
+        model.frame(model)
     } else {
       self$newdata <- newdata
     }
@@ -123,7 +126,9 @@ R6Nomogram$set("public", "PopulateVars", function(model=self$model,
   self$constant <- attr(tmp.terms, "constant")
   self$orig.terms <- as.data.frame(predict(model, newdata, type=type.terms))
   self$orig.response <- predict(model, newdata, type=type.response)
-  self$total.points <- predict(model, newdata)
+  d <- duplicated(self$orig.response)
+  self$orig.response <- self$orig.response[!d,]
+  self$total.points <- predict(model, newdata)[!d,]
   self$linear.predictor <- self$total.points
   self$total.points <- self$total.points - self$constant
   
@@ -168,7 +173,7 @@ R6Nomogram$set("public", "shift", function(w = self$x.names,
                                            v, 
                                            update.constant=TRUE) {
   if(missing(v)) {
-    v <- -sapply(self$x.points[w], min)
+    v <- -sapply(self$x.points[w], min, na.rm=TRUE)
   }
   
   if(is.null(names(v))) names(v) <- w
@@ -188,7 +193,7 @@ R6Nomogram$set("public", "shift", function(w = self$x.names,
 
 R6Nomogram$set("public", "scale", function(max.points = 100) {
   m <- max(
-    sapply(self$x.points, max)
+    sapply(self$x.points, max, na.rm=TRUE), na.rm=TRUE
   )
   
   self$total.points <- self$total.points/m*max.points
@@ -208,7 +213,7 @@ R6Nomogram$set("public", "pretty", function(w=self$x.names,
   for(i in w) {
     self$x.y.offsets[[i]] <- NULL
     if(is.factor(self$x.vals[[i]])) {
-      self$x.pretty.vals[[i]] <- self$x.vals[[i]]
+      self$x.pretty.vals[[i]] <- as.character(self$x.vals[[i]])
       self$x.pretty.points[[i]] <- self$x.points[[i]]
       next
     }
@@ -262,7 +267,7 @@ R6Nomogram$set("public", "plot", function(plot.x=TRUE, plot.y=TRUE,
 #  oldpar <- par(c())
 #  on.exit(par(oldpar))
   
-  par(mar=c(1, max(nchar(self$x.labels)), 1, 0) + 0.1,
+  par(mar=c(1, max(nchar(self$x.labels), na.rm=TRUE), 1, 0) + 0.1,
       xpd=TRUE)
   par(...)
   
@@ -271,7 +276,7 @@ R6Nomogram$set("public", "plot", function(plot.x=TRUE, plot.y=TRUE,
       self$v.pos.x <- seq(from = length(self$x.labels) + 1, to = 1, by = -1)
     }
     
-    max.p <- max(sapply(self$x.points, max))
+    max.p <- max(sapply(self$x.points, max, na.rm=TRUE), na.rm=TRUE)
     
     if(plot.y) {
       if(!length(self$v.pos.r)) {
@@ -284,11 +289,12 @@ R6Nomogram$set("public", "plot", function(plot.x=TRUE, plot.y=TRUE,
       
       plot.new()
       plot.window(xlim = c(0, max.p), 
-                  ylim=c(min(self$v.pos.r), max(self$v.pos.x)))
+                  ylim=c(min(self$v.pos.r, na.rm=TRUE), 
+                         max(self$v.pos.x, na.rm=TRUE)))
     } else {
       plot.new()
       plot.window(xlim = c(0, max.p), 
-                  ylim = c(0, max(self$v.pos.x)))
+                  ylim = c(0, max(self$v.pos.x, na.rm=TRUE)))
     }
     
     for(i in seq_along(self$v.pos.x)) {
@@ -345,8 +351,9 @@ R6Nomogram$set("public", "plot", function(plot.x=TRUE, plot.y=TRUE,
         self$options$line.par[["default"]] %||%
         list()
       tmp.args <- modifyList(tmp.args, 
-                             list(x0=0, y0=self$v.pos.x[i], 
-                                  x1=max(self$x.points[[cur.name]])))
+                             list(x0=min(self$x.points[[cur.name]], na.rm=TRUE), 
+                                  y0=self$v.pos.x[i], 
+                                  x1=max(self$x.points[[cur.name]], na.rm=TRUE)))
       do.call(segments, tmp.args)
       
       tmp.args <- self$options$tick.par[[cur.name]] %||%
@@ -413,7 +420,7 @@ R6Nomogram$set("public", "plot", function(plot.x=TRUE, plot.y=TRUE,
   if(plot.y) {
     if(!plot.x) {
       
-      max.p <- max(sapply(self$x.points, max))
+      max.p <- max(sapply(self$x.points, max, na.rm=TRUE), na.rm=TRUE)
       
       if(!length(self$v.pos.r)) {
         if(self$plot.lp) {
@@ -425,7 +432,7 @@ R6Nomogram$set("public", "plot", function(plot.x=TRUE, plot.y=TRUE,
       
       plot.new()
       plot.window(xlim = c(0, max.p), 
-                  ylim=c(min(self$v.pos.r), 0))
+                  ylim=c(min(self$v.pos.r, na.rm=TRUE), 0))
       
       if(!missing(predict)) {  # copy of above, should make a function
         
@@ -473,9 +480,11 @@ R6Nomogram$set("public", "plot", function(plot.x=TRUE, plot.y=TRUE,
                                 y0=self$v.pos.r, 
                                 x1=max.p))
     do.call(segments, tmp.args)
-    
-    tick.pos <- (self$pretty.total.points - min(self$total.points))/
-      diff(range(self$total.points))*max.p
+    if(length(self$tp.range) == 0) {
+      self$tp.range <- range(self$total.points, na.rm = TRUE)
+    }
+    tick.pos <- (self$pretty.total.points - self$tp.range[1])/
+      diff(self$tp.range)*max.p
     tmp.args <- self$options$tick.par[['total points']] %||%
       self$options$tick.par[['default']] %||%
       list()
@@ -547,8 +556,8 @@ R6Nomogram$set("public", "plot", function(plot.x=TRUE, plot.y=TRUE,
          tick=FALSE, las=1)
     
     if(!missing(predict)) {
-      segments( (tot-min(self$total.points))/
-                  diff(range(self$total.points))*max.p,
+      segments( (tot-self$tp.min[1])/
+                  diff(self$tp.range))*max.p,
                 self$v.pos.r[1], y1=self$v.pos.r[i2],
                 col='red')
     }
@@ -565,9 +574,9 @@ R6Nomogram$set("public", "grconvertX", function(x,
                                                 verbose) {
   if(missing(verbose)) verbose <- self$verbose
   if(from == "Total Points") {
-    max.p <- max(sapply(self$x.points, max))
-    return((x-min(self$total.points))/
-      diff(range(self$total.points))*max.p)
+    max.p <- max(sapply(self$x.points, max, na.rm=TRUE), na.rm=TRUE)
+    return((x-self$tp.range[1])/
+      diff(self$tp.range)*max.p)
   }
   w <- match(from, self$x.names)
   if(is.na(w)) {
