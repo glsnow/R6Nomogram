@@ -556,8 +556,8 @@ R6Nomogram$set("public", "plot", function(plot.x=TRUE, plot.y=TRUE,
          tick=FALSE, las=1)
     
     if(!missing(predict)) {
-      segments( (tot-self$tp.min[1])/
-                  diff(self$tp.range))*max.p,
+      segments( (tot-self$tp.range[1])/
+                  diff(self$tp.range)*max.p,
                 self$v.pos.r[1], y1=self$v.pos.r[i2],
                 col='red')
     }
