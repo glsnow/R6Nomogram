@@ -127,8 +127,8 @@ R6Nomogram$set("public", "PopulateVars", function(model=self$model,
   self$orig.terms <- as.data.frame(predict(model, newdata, type=type.terms))
   self$orig.response <- predict(model, newdata, type=type.response)
   d <- duplicated(self$orig.response)
-  self$orig.response <- self$orig.response[!d,]
-  self$total.points <- predict(model, newdata)[!d,]
+  self$orig.response <- self$orig.response[!d]
+  self$total.points <- predict(model, newdata)[!d]
   self$linear.predictor <- self$total.points
   self$total.points <- self$total.points - self$constant
   
