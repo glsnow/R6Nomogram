@@ -332,7 +332,7 @@ R6Nomogram$set("public", "plot", function(plot.x=TRUE, plot.y=TRUE,
     
       if(!( (cur.name %in% names(self$x.y.offsets)) &&
             length(self$x.y.offsets[[cur.name]]) )) {
-        if(is.factor(n1$x.vals[[cur.name]])) {
+        if(is.factor(self$x.vals[[cur.name]])) {
           self$x.y.offsets[[cur.name]] <- rep(c(1,-1), length.out=
               length(self$x.pretty.points[[cur.name]]))[order(order(
                 self$x.pretty.points[[cur.name]]
