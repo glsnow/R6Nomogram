@@ -264,9 +264,6 @@ R6Nomogram$set("public", "pretty.y", function(v) {
 
 R6Nomogram$set("public", "plot", function(plot.x=TRUE, plot.y=TRUE,
                                           predict, ...) {
-#  oldpar <- par(c())
-#  on.exit(par(oldpar))
-  
   par(mar=c(1, max(nchar(self$x.labels), na.rm=TRUE), 1, 0) + 0.1,
       xpd=TRUE)
   par(...)
@@ -342,7 +339,8 @@ R6Nomogram$set("public", "plot", function(plot.x=TRUE, plot.y=TRUE,
           tmp.x <- self$x.pretty.vals[[cur.name]][tmp.o]
           tmp.p <- self$x.pretty.points[[cur.name]][tmp.o]
           tmp.s <- sign(diff(tmp.p))
-          tmp.s <- c(tmp.s, tail(tmp.s,1))
+          #tmp.s <- c(tmp.s, tail(tmp.s,1))
+          tmp.s <- c(head(tmp.s, 1), tmp.s)
           self$x.y.offsets[[cur.name]] <- tmp.s[order(tmp.o)]
         }
       }
