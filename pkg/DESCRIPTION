@@ -16,5 +16,6 @@ Description: Nomograms are a type of plot for displaying
   fields in the object allow you to customize the nomogram.
   You can then plot the nomogram, further customize, replot,
   etc.
+URL: https://github.com/glsnow/R6Nomogram
 Imports: R6
 RoxygenNote: 7.3.2
