@@ -15,15 +15,18 @@ the total back to a predicted response.
 }
 \details{
 The construction of a nomogram proceeds through a small pipeline of
-steps, all of which are run automatically by \code{initialize()} (and can
+steps, all of which are run automatically by \code{initialize()} by default
+(and can
 also be re-run individually if axes need to be adjusted):
 \enumerate{
+  \item \code{new} or \code{initialize} - initialize object and store 
+         model, terms, and newdat in the object.
   \item \code{PopulateVars()} - extract variable names, term-level
         predictions, and response predictions from the model and data.
   \item \code{create.x()} - build sorted, de-duplicated predictor values
         and the corresponding points for each axis.
   \item \code{shift()} - shift each axis so that point values start at a
-        convenient origin (by default, so the minimum of each axis is 0).
+        convenient origin (by default, 0).
   \item \code{scale()} - rescale all axes so that the maximum number of
         points is a convenient round number (by default, 100).
   \item \code{pretty()} / \code{pretty.y()} - choose "pretty" tick
@@ -37,10 +40,8 @@ plot).
 \section{Public fields}{
   \if{html}{\out{<div class="r6-fields">}}
   \describe{
-    \item{\code{model}}{The fitted model object (e.g. from \code{lm}, \code{glm}, or
-\code{coxph}) used to construct the nomogram.}
-
-    \item{\code{terms}}{The \code{terms} object describing the model formula.}
+    \item{\code{model}}{The fitted model object (e.g. from \code{lm}, \code{glm}, 
+\code{coxph}, etc.) used to construct the nomogram.}
 
     \item{\code{newdata}}{The data frame used to build the nomogram, either supplied
 by the user or extracted from \code{model}.}
@@ -261,7 +262,7 @@ updated to match so that the overall model is unaffected.
 shift. Defaults to all axes.}
       \item{\code{v}}{Numeric vector of shift amounts, one per element of
 \code{w} (matched by name if named). If missing, each axis is
-shifted by the negative of its own minimum point value.}
+shifted so that the minimum number of points is 0.}
       \item{\code{update.constant}}{Logical; if \code{TRUE} (the default),
 \code{total.points} and \code{constant} are updated so totals
 remain consistent with the shifted axes.}
