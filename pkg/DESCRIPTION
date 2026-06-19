@@ -18,4 +18,4 @@ Description: Nomograms are a type of plot for displaying
   etc.
 URL: https://github.com/glsnow/R6Nomogram
 Imports: R6
-RoxygenNote: 7.3.2
+Config/roxygen2/version: 8.0.0
