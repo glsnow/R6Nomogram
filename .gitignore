@@ -1,4 +1,7 @@
+.gitignore
 .Rproj.user
 .Rhistory
 .RData
 .Ruserdata
+R6Nomogram.Rproj
+.positai
