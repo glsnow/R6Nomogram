@@ -83,7 +83,11 @@
 #'   total points / linear predictor / response axes.
 #' @field options List of plotting options: \code{tik.len}, \code{txt.pos},
 #'   \code{points.nint}, \code{signif.digits}, \code{text.par},
-#'   \code{line.par}, and \code{tick.par}.
+#'   \code{line.par}, and \code{tick.par}.  The last 3 default to empty lists,
+#'   but can be lists with any of the parameters that can be passed to 
+#'   \code{text} or \code{segments}.  They can also be a list of lists with
+#'   the element names matching \code{self$x.names} to give different options
+#'   for each scale.
 #' @field points.lab Label for the "Points" axis.
 #' @field total.points.lab Label for the "Total Points" axis.
 #' @field lp.lab Label for the "Linear Predictor" axis.
@@ -94,6 +98,38 @@
 #'
 #' @author Greg Snow <538280@gmail.com>
 #' @seealso The \code{nomogram} function in the \code{rms} package
+#' 
+#' @examples
+#' mtcars2 <- mtcars
+#' mtcars2$cyl <- factor(mtcars2$cyl)
+#' mtcars2$gear <- factor(mtcars2$gear)
+#' mtcars2$vs <- factor(mtcars2$vs)
+#' 
+#' fit <- glm(mpg ~ poly(wt,2) + poly(disp,2) + cyl*gear + vs,
+#'   data=mtcars2, family=gaussian(link=inverse))
+#'   
+#' n1 <- R6Nomogram$new(fit)
+#' n1$plot()
+#' 
+#' n1$options$tik.len <- 0.4
+#' n1$options$txt.pos <- 1.2
+#' n1$options$signif.digits <- 3
+#' n1$x.pretty.vals$`cyl:gear` <-
+#'   c("Other", "", "", "", "6:4", "", "6:5", "8:5")
+#' n1$pretty.y(seq(60, 200, by=10))
+#' n1$pretty('wt', c(1.5, 2, 3, 3.5, 4, 4.25, 4.5, 
+#'                   4.75, 5, 5.25, 5.4))
+#' n1$pretty('disp', c(75, 100, 125, 150, 175, 200, 250,
+#'                     300, 400, 450))
+#' n1$plot.lp <- TRUE
+#' n1$v.pos.r <- NULL # it will be recreated properly in next plot
+#' n1$lp.lab <- "G/M"
+#' n1$resp.lab <- "M/G"
+#' n1$options$text.par[['linear predictor']] <- list(cex=0.8)
+#' 
+#' n1$plot()
+#' 
+#' rm(mtcars2)
 #' 
 #' @export
 #' @importFrom R6 R6Class

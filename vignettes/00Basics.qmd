@@ -1,0 +1,215 @@
+---
+title: "R6Nomogram Basics"
+format: 
+  html:
+    echo: true
+---
+
+## Nomograms
+
+Nomograms are a graphical representation of a model.  For other than
+the simplest of models, nomograms can better explain what the model is doing,
+compared to just interpreting coefficients.  Each predictor variable (and 
+any interactions) is represented by a horizontal scale.  
+
+To use a nomogram to make predictions, you look up the value
+of the predictor on the scale, then go straight up to the top scale (called 
+points) to identify the number of points.  You do this for each of the 
+predictors, then sum the points and look up that value on a scale at the 
+bottom of the plot and use that to predict the response value.
+
+With modern computers we no longer need nomograms to help with the calculations,
+but they are helpful for opening the black box of the model.  Things like 
+transformations, polynomials, or splines of a predictor variable can more 
+easily be interpreted from the plot than from a table of coefficients.  Link
+functions on the response can also be visualized from the plot.  Read on for
+an example to see how these plots can help with interpretation and explanation
+of models.
+
+
+This vignette covers the basics and some of the options for creating 
+nomograms using the R6Nomogram package.  The idea is to create an 
+initial nomogram, then, since it is an R6 object, use the methods
+to try different changes and improvements until you produce a good looking
+nomogram (the first one will probably need improvement).
+
+The automated step work well for models with a `predict` method that has a 
+`terms` option, such as `lm` and `glm`.  Another vignette will cover what to
+do if there is no predict method, or it does not predict terms.
+
+## The Model
+
+We first need a model to visualize.  We will use the `mtcars` data set that
+comes with R and fit a model to predict `mpg` (miles per gallon).
+
+A few of the potential predictors make more sense as categorical, rather than
+numeric, predictors, so we will make a copy of the data frame and change the
+variables to factors.
+
+```{r}
+#| label: model
+
+mtcars2 <- mtcars
+mtcars2$cyl <- factor(mtcars2$cyl)
+mtcars2$gear <- factor(mtcars2$gear)
+mtcars2$vs <- factor(mtcars2$vs, levels=0:1, labels=c("V", "S"))
+
+fit <- glm(mpg ~ poly(wt, 2) + poly(disp,2) + cyl*gear + vs,
+           data=mtcars2, family=gaussian(link="inverse"))
+summary(fit)
+```
+
+I do not claim that this is the best model (or even a good model) for predicting
+`mpg`, but it illustrates most of the features of `R6Nomogram`.
+
+Think about trying to explain the model based on the above summary to a 
+non-statistician.
+
+Using `glm` with the `gaussian` family and the "inverse" link means that the 
+model actually fits the reciprocal of `mpg`, gallons per mile instead of miles
+per gallon.
+
+## First Plot
+
+Since `glm` models are pretty straight forward, the automated parts of `R6Nomogram`
+will work directly, we just create a new object based on the model:
+
+```{r}
+#| label: nom1
+
+library(R6Nomogram)
+
+n1 <- R6Nomogram$new(fit)
+```
+
+The steps taken are printed out.  Since it finished we do not have to worry 
+about anything.  If there had been something tricky, then we would have
+seen which step the problem occurred on, rerun everything up to that step,
+and then manually did the rest.
+
+Now we can call the `plot` method to see the first iteration of our plot 
+(warning: this will not be pretty, we will improve it).
+
+```{r}
+#| label: nom2
+
+n1$plot()
+```
+
+This gives the basic plot, we can start to see some of the patterns, but there
+are some labels plotted on top of each other and there are some big gaps.  We
+can improve the plot.
+
+## Total Points and Response
+
+The default plot does not show the linear predictor.  Sometimes it is distracting,
+but other times it can grant insight.  In our model the linear predictor is
+the gallons per mile variable and can be interesting.  We will tell it to plot
+the linear predictor and also change the label for it and the response.  We
+need to set the field `v.pos.r` to `NULL` so that the correct positions are 
+computed the next time we plot.
+
+```{r}
+#| label: response
+
+n1$plot.lp <- TRUE
+n1$v.pos.r <- NULL
+n1$lp.lab <- "G/M"
+n1$resp.lab <- "M/G"
+n1$plot()
+```
+
+## Categorical Labels
+
+Next we can see that there are several labels plotting on top of each other on
+the line for the interaction.  This is because "4" is the baseline for `cyl` 
+and "3" is the baseline for `gear`, so all the interactions including either 
+of those all have the same value.  We will replace one of the values with 
+"Other" and the remaining ones with "" so that they will be blank.
+
+```{r}
+#| label: interaction
+
+dput(n1$x.pretty.vals$`cyl:gear`)
+n1$x.pretty.vals$`cyl:gear` <-
+   c("Other", "", "", "", "6:4", "", "6:5", "8:5")
+n1$plot()
+```
+
+## Tick Values
+
+The values where to put the ticks was determined by the `pretty` and related 
+functions, but they did not take into account the non-linearity.  Some of the 
+scales have large blank areas where it would make sense to put more tick marks
+and labels.  Let's take care of that now.
+
+```{r}
+#| label: ticks1
+
+n1$pretty.y(seq(60, 200, by=10))
+n1$pretty('wt', c(1.5, 2, 3, 3.5, 4, 4.25, 4.5, 
+                 4.75, 5, 5.25, 5.4))
+n1$pretty('disp', c(75, 100, 125, 150, 175, 200, 250,
+                   300, 400, 450))
+n1$plot()
+```
+
+## Additional Options
+
+There is still overlap on the gallons per mile line, lets set some options to 
+make these look better and also move all of the labels further from the lines
+and make the tick marks a little longer.
+
+```{r}
+#| label: options
+
+n1$options$text.par[['linear predictor']] <- list(cex=0.7)
+n1$options$tik.len <- 0.4
+n1$options$txt.pos <- 1.2
+n1$options$signif.digits <- 3
+n1$plot()
+```
+
+Now it looks much better than when we started.
+
+## Predictions
+
+We can do one more thing, demonstrate the predictive idea by giving the `plot`
+method a row from our data (or a new, matching data frame).
+
+```{r}
+#| label: predict
+
+par(oma=c(0,0,1,0))
+n1$plot(predict = mtcars2[1,])
+mtext(rownames(mtcars2)[1], line=1)
+
+n1$plot(predict = mtcars2[20,])
+mtext(rownames(mtcars2)[20], line=1)
+
+n1$plot(predict = mtcars2[15,])
+mtext(rownames(mtcars2)[15], line=1)
+```
+
+## Tables
+
+We can approximate the number of points from the graph and see a specific set of
+values when predicting.  But, we may want to have tables with more values that
+we can look up.  
+
+Since we will probably want more dense values for the tables, but we do not want
+to mess up our plot, we will first clone the object, then redo the "tick" locations, then use the `table` method to show the tables.  These tables can also be saved
+as a list so that they can be copied to a database or spreadsheet to use in
+other look-up tools.
+
+```{r}
+#| label: tables
+
+n2 <- n1$clone()
+
+n2$pretty.y(seq(60, 200, by=5))
+n2$pretty('wt', seq(1.5, 5.4, by=0.1))
+n2$pretty('disp', seq(75, 450, by=25))
+n2$tables()
+```
+
