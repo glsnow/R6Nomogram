@@ -1,6 +1,6 @@
 Package: R6Nomogram
 Version: 1.0
-Title: Create, Edit, and Plot Nomograms using R6 objects
+Title: Create, Edit, and Plot Nomograms using R6 Objects
 License: GPL (>= 2)
 Authors@R: c(person("Greg", "Snow", role=c("aut", "cre"),
     email="538280@gmail.com"))
@@ -18,5 +18,7 @@ Description: Nomograms are a type of plot for displaying
   etc.
 URL: https://github.com/glsnow/R6Nomogram
 Imports: R6
+Suggests: quarto
 Encoding: UTF-8
 Config/roxygen2/version: 8.0.0
+VignetteBuilder: quarto

@@ -4,6 +4,10 @@ format:
   html:
     echo: true
     embed-resources: true
+vignette: >
+  %\VignetteIndexEntry{Basics.qmd}
+  %\VignetteEngine{quarto::html}
+  %\VignetteEncoding{UTF-8}
 ---
 
 ## Nomograms
