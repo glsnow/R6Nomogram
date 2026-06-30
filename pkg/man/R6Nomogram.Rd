@@ -70,6 +70,10 @@ n1$plot()
 rm(mtcars2)
 
 }
+\references{
+Regression Modeling Strategies, Frank Harrell 
+  <doi:10.1007/978-3-319-19425-7>
+}
 \seealso{
 The \code{nomogram} function in the \code{rms} package
 }
@@ -170,6 +174,10 @@ for each scale.}
 position the response axis.}
 
     \item{\code{verbose}}{Logical; whether to print progress messages.}
+
+    \item{\code{par}}{list of parameter settings in place during the last
+plot.  This can be used with the \code{par} function if you
+are manually adding to the plot.}
   }
   \if{html}{\out{</div>}}
 }

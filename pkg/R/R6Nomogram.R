@@ -95,9 +95,14 @@
 #' @field tp.range Numeric vector giving the range of total points used to
 #'   position the response axis.
 #' @field verbose Logical; whether to print progress messages.
+#' @field par list of parameter settings in place during the last
+#'   plot.  This can be used with the \code{par} function if you
+#'   are manually adding to the plot.
 #'
 #' @author Greg Snow <538280@gmail.com>
 #' @seealso The \code{nomogram} function in the \code{rms} package
+#' @references Regression Modeling Strategies, Frank Harrell 
+#'   <doi:10.1007/978-3-319-19425-7>
 #' 
 #' @examples
 #' mtcars2 <- mtcars
@@ -175,6 +180,7 @@ R6Nomogram <- R6::R6Class(
     resp.lab = "Response",
     tp.range = numeric(0),
     verbose = TRUE,
+    par = list(),
     
     #' @description
     #' Construct a new \code{R6Nomogram}. Runs the full construction
@@ -485,9 +491,10 @@ R6Nomogram <- R6::R6Class(
     #' @return The object itself, invisibly.
     plot = function(plot.x = TRUE, plot.y = TRUE,
                     predict, ...) {
-      par(mar=c(1, max(nchar(self$x.labels), na.rm=TRUE), 1, 0) + 0.1,
-          xpd=TRUE)
-      par(...)
+      old.par <- par(mar=c(1, max(nchar(self$x.labels), 1, na.rm=TRUE), 
+                           1, 0) + 0.1,
+          xpd=TRUE, ...)
+      on.exit(par(old.par))
       
       if(plot.x) {
         if(!length(self$v.pos.x)) {
@@ -781,7 +788,7 @@ R6Nomogram <- R6::R6Class(
                     col='red')
         }
       }
-      
+      self$par <- par(no.readonly=TRUE)
       return(invisible(self))
     },
     

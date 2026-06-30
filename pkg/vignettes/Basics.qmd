@@ -185,7 +185,7 @@ method a row from our data (or a new, matching data frame).
 ```{r}
 #| label: predict
 
-par(oma=c(0,0,1,0))
+oldpar <- par(oma=c(0,0,1,0))
 n1$plot(predict = mtcars2[1,])
 mtext(rownames(mtcars2)[1], line=1)
 
@@ -194,6 +194,8 @@ mtext(rownames(mtcars2)[20], line=1)
 
 n1$plot(predict = mtcars2[15,])
 mtext(rownames(mtcars2)[15], line=1)
+
+par(oldpar)
 ```
 
 ## Tables
@@ -216,5 +218,69 @@ n2$pretty.y(seq(60, 200, by=5))
 n2$pretty('wt', seq(1.5, 5.4, by=0.1))
 n2$pretty('disp', seq(75, 450, by=25))
 n2$tables()
+```
+
+
+## Model Structure
+
+The nomogram is dependent on how you fit the model.  Two different
+models that make the exact same predictions can result in different
+nomograms.  Changing some options in how you fit the model may make
+the nomogram easier (or harder) to interpret.
+
+For example, the above model used the default treatment contrasts
+for `cyl` and `gear` with 4 cylinders and 3 gears as the baseline
+values.  Therefore, the interactions involving 4 cylinders or 3
+gears all had the same value (which we combined into other above).  
+We can refit the model with a different set of contrasts and see how
+that changes the plot.
+
+
+```{r}
+#| label: model2
+
+contrasts(mtcars2$cyl) <- contr.sum(3)
+contrasts(mtcars2$gear) <- contr.sum(3)
+
+fit2 <- glm(mpg ~ poly(wt, 2) + poly(disp,2) + cyl*gear + vs,
+           data=mtcars2, family=gaussian(link="inverse"))
+n3 <- R6Nomogram$new(fit2)
+n3$options$tik.len <- 0.4
+n3$options$txt.pos <- 1.2
+n3$options$signif.digits <- 3
+n3$plot.lp <- TRUE
+n3$lp.lab <- "G/M"
+n3$resp.lab <- "M/G"
+n3$options$text.par[['linear predictor']] <- list(cex=0.8)
+
+n3$plot()
+```
+
+Since we have to look at the interaction line in the nomogram anyways,
+we could further simplify the plot by fitting a combination of `cyl`
+and `gear` instead of separate main effects and interaction.
+
+```{r}
+#| label: model3
+
+mtcars2$`cyl:gear` <- interaction(mtcars2$cyl, mtcars2$gear,
+                                 sep=':')
+fit3 <- glm(mpg ~ poly(wt, 2) + poly(disp, 2) +
+             `cyl:gear`,
+           data=mtcars2, family=gaussian(link='inverse'))
+n4 <- R6Nomogram$new(fit3, verbose=FALSE)
+n4$options$tik.len <- 0.4
+n4$options$txt.pos <- 1.2
+n4$options$signif.digits <- 3
+n4$plot.lp <- TRUE
+n4$lp.lab <- "G/M"
+n4$resp.lab <- "M/G"
+n4$x.y.offsets$`cyl:gear` <- c(-1, 1, 2, -1, 1, -1, 1, -2)
+n4$options$text.par[['linear predictor']] <- list(cex=0.8)
+n4$options$text.par[['cyl:gear']] <- list(col=c(
+  c("red", "forestgreen", "blue")[c(1,1,1,2,2,3,3,3)]
+))
+
+n4$plot()
 ```
 
